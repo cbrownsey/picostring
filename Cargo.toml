@@ -1,7 +1,10 @@
 [package]
 name = "picostring"
+description = "A stack allocated string that requires no extra space to store length."
 version = "0.1.0"
 edition = "2021"
+license = "Unlicense"
+license-file = "LICENSE"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
