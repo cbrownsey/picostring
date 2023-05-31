@@ -1,18 +1,20 @@
+#![warn(clippy::pedantic)]
 use core::{fmt::Display, mem::MaybeUninit, ptr};
 
 /// A stack allocated string containing up to CAPACITY bytes. Currently that must be strictly
 /// less than 64, but the utf-8 3 and 4 width extension bytes may be used to increase this to
 /// 2048, or 32,768 which seems a tad extravagant.
 ///
-/// Additionally, the check for maximum CAPACITY is checked at compile time. This check only
-/// happens if the PicoString is actually initialized, so simply having a type variable with
-/// `type A = PicoString<64>` will compile, but calling `A::new()` will result in a compile
-/// error.
+// / Additionally, the check for maximum CAPACITY is checked at compile time. This check only
+// / happens if the PicoString is actually initialized, so simply having a type variable with
+// / `type A = PicoString<64>` will compile, but calling `A::new()` will result in a compile
+// / error.
 ///
 /// # Safety
 /// The last two bytes must be initialized, and the final byte must contain a
 /// value in the range 0xC0..=0xFF. The first `len` bytes must contain an
 /// initialized and valid utf-8 string.
+#[derive(Clone, Copy)]
 pub struct PicoString<const CAPACITY: usize>([MaybeUninit<u8>; CAPACITY]);
 
 impl<const N: usize> PicoString<N> {
@@ -26,6 +28,7 @@ impl<const N: usize> PicoString<N> {
     const MAX_CAPACITY: usize = 64;
 
     #[doc(hidden)]
+    #[allow(unused)]
     const COMPILE_GATE: () = assert!(
         N <= Self::MAX_CAPACITY,
         "PicoString must have capacity less than or equal to 64"
@@ -38,16 +41,21 @@ impl<const N: usize> PicoString<N> {
     /// Panics if this functions is somehow run on a `PicoString<N>` with N greater than 64. This
     /// should be impossible however due to a compile time check.
     pub fn new() -> Self {
-        let _ = Self::COMPILE_GATE;
-
-        if N > Self::MAX_CAPACITY {
-            panic!(
-                "PicoString may only hold up to {} bytes.",
-                Self::MAX_CAPACITY
-            );
-        };
-
         const UNINIT: MaybeUninit<u8> = MaybeUninit::uninit();
+        // Self::COMPILE_GATE;
+
+        assert!(
+            N <= Self::MAX_CAPACITY,
+            "PicoString may only hold up to {} bytes.",
+            Self::MAX_CAPACITY
+        );
+        // if N > Self::MAX_CAPACITY {
+        //     panic!(
+        //         "PicoString may only hold up to {} bytes.",
+        //         Self::MAX_CAPACITY
+        //     );
+        // };
+
         let mut arr = [UNINIT; N];
 
         if N > 0 {
@@ -55,6 +63,11 @@ impl<const N: usize> PicoString<N> {
         }
 
         Self(arr)
+    }
+
+    /// Checks to see if adding `len` bytes to the `PicoString` would overflow it.
+    pub fn could_fit(&self, len: usize) -> bool {
+        self.len() + len <= N
     }
 
     /// Inserts a character into the `PicoString` at a byte position, returning false if the
@@ -169,10 +182,13 @@ impl<const N: usize> PicoString<N> {
     /// assert_eq!(s.remove(0), 'o');
     /// ```
     pub fn remove(&mut self, idx: usize) -> char {
-        let ch = match self[idx..].chars().next() {
-            Some(ch) => ch,
-            None => panic!("cannot remove a char from the end of a string"),
+        let Some(ch) = self[idx..].chars().next() else {
+            panic!("cannot remove a char from the end of a string");
         };
+        // let ch = match self[idx..].chars().next() {
+        //     Some(ch) => ch,
+        //     None => panic!("cannot remove a char from the end of a string"),
+        // };
 
         let next = idx + ch.len_utf8();
         let len = self.len();
@@ -240,6 +256,7 @@ impl<const N: usize> PicoString<N> {
         ptr::addr_of_mut!(self.0).cast()
     }
 
+    #[must_use]
     pub fn len(&self) -> usize {
         match N {
             0 => 0,
@@ -259,7 +276,7 @@ impl<const N: usize> PicoString<N> {
         self.len() == 0
     }
 
-    /// Set the length of the PicoVec. Notably, this should not touch the length byte, which is
+    /// Set the length of the `PicoString`. Notably, this should not touch the length byte, which is
     /// the last byte, if the new length would cause the string to overrun those bytes.
     ///
     /// # Safety
@@ -430,6 +447,8 @@ impl<const N: usize, const M: usize> PartialEq<PicoString<M>> for PicoString<N> 
         self.as_str() == other.as_str()
     }
 }
+
+impl<const N: usize> Eq for PicoString<N> {}
 
 impl<const N: usize> PartialEq<&str> for PicoString<N> {
     fn eq(&self, other: &&str) -> bool {
