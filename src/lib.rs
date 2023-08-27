@@ -1,6 +1,6 @@
 #![warn(clippy::pedantic)]
 use core::{fmt::Display, mem::MaybeUninit, ptr};
-use std::hash::Hash;
+use std::{borrow::Borrow, hash::Hash};
 
 /// A stack allocated string containing up to CAPACITY bytes. Currently that must be strictly
 /// less than 64, but the utf-8 3 and 4 width extension bytes may be used to increase this to
@@ -443,23 +443,17 @@ impl Display for ExceedsCapacity {
 
 impl std::error::Error for ExceedsCapacity {}
 
-impl<const N: usize> Eq for PicoString<N> {}
-
-impl<S, const N: usize> PartialEq<S> for PicoString<N>
-where
-    S: AsRef<str>,
-{
-    fn eq(&self, other: &S) -> bool {
-        self.as_str().eq(other.as_ref())
+impl<const N: usize, const M: usize> PartialEq<PicoString<M>> for PicoString<N> {
+    fn eq(&self, other: &PicoString<M>) -> bool {
+        self.as_str().eq(other.as_str())
     }
 }
 
-impl<S, const N: usize> PartialOrd<S> for PicoString<N>
-where
-    S: AsRef<str>,
-{
-    fn partial_cmp(&self, other: &S) -> Option<std::cmp::Ordering> {
-        Some(self.as_str().cmp(other.as_ref()))
+impl<const N: usize> Eq for PicoString<N> {}
+
+impl<const N: usize, const M: usize> PartialOrd<PicoString<M>> for PicoString<N> {
+    fn partial_cmp(&self, other: &PicoString<M>) -> Option<std::cmp::Ordering> {
+        Some(self.as_str().cmp(other.as_str()))
     }
 }
 
@@ -496,6 +490,12 @@ impl<const N: usize> AsRef<str> for PicoString<N> {
 impl<const N: usize> AsMut<str> for PicoString<N> {
     fn as_mut(&mut self) -> &mut str {
         self.as_mut_str()
+    }
+}
+
+impl<const N: usize> Borrow<str> for PicoString<N> {
+    fn borrow(&self) -> &str {
+        self.as_str()
     }
 }
 
@@ -666,9 +666,9 @@ mod tests {
 
     #[test]
     pub fn try_from() {
-        assert_eq!(PicoString::<0>::try_from("").unwrap(), "");
-        assert_eq!(PicoString::<1>::try_from("A").unwrap(), "A");
-        assert_eq!(PicoString::<2>::try_from("AB").unwrap(), "AB");
+        assert_eq!(&*PicoString::<0>::try_from("").unwrap(), "");
+        assert_eq!(&*PicoString::<1>::try_from("A").unwrap(), "A");
+        assert_eq!(&*PicoString::<2>::try_from("AB").unwrap(), "AB");
 
         assert!(PicoString::<0>::try_from("A").is_err());
         assert!(PicoString::<1>::try_from("AB").is_err());
