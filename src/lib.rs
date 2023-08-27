@@ -1,5 +1,6 @@
 #![warn(clippy::pedantic)]
 use core::{fmt::Display, mem::MaybeUninit, ptr};
+use std::hash::Hash;
 
 /// A stack allocated string containing up to CAPACITY bytes. Currently that must be strictly
 /// less than 64, but the utf-8 3 and 4 width extension bytes may be used to increase this to
@@ -442,35 +443,29 @@ impl Display for ExceedsCapacity {
 
 impl std::error::Error for ExceedsCapacity {}
 
-impl<const N: usize, const M: usize> PartialEq<PicoString<M>> for PicoString<N> {
-    fn eq(&self, other: &PicoString<M>) -> bool {
-        self.as_str() == other.as_str()
-    }
-}
-
 impl<const N: usize> Eq for PicoString<N> {}
 
-impl<const N: usize> PartialEq<&str> for PicoString<N> {
-    fn eq(&self, other: &&str) -> bool {
-        self.as_str() == *other
+impl<S, const N: usize> PartialEq<S> for PicoString<N>
+where
+    S: AsRef<str>,
+{
+    fn eq(&self, other: &S) -> bool {
+        self.as_str().eq(other.as_ref())
     }
 }
 
-impl<const N: usize> PartialEq<PicoString<N>> for &str {
-    fn eq(&self, other: &PicoString<N>) -> bool {
-        other == self
+impl<S, const N: usize> PartialOrd<S> for PicoString<N>
+where
+    S: AsRef<str>,
+{
+    fn partial_cmp(&self, other: &S) -> Option<std::cmp::Ordering> {
+        Some(self.as_str().cmp(other.as_ref()))
     }
 }
 
-impl<const N: usize> PartialEq<String> for PicoString<N> {
-    fn eq(&self, other: &String) -> bool {
-        self.as_str() == other.as_str()
-    }
-}
-
-impl<const N: usize> PartialEq<PicoString<N>> for String {
-    fn eq(&self, other: &PicoString<N>) -> bool {
-        other == self
+impl<const N: usize> Ord for PicoString<N> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.as_str().cmp(&other.as_str())
     }
 }
 
@@ -507,6 +502,52 @@ impl<const N: usize> AsMut<str> for PicoString<N> {
 impl<const N: usize> AsRef<[u8]> for PicoString<N> {
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
+    }
+}
+
+impl<const N: usize> Hash for PicoString<N> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.as_str().hash(state);
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<const N: usize> serde::Serialize for PicoString<N> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&*self)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, const N: usize> serde::Deserialize<'de> for PicoString<N> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct StrVisitor<const N: usize>;
+
+        impl<const N: usize> serde::de::Visitor<'_> for StrVisitor<N> {
+            type Value = PicoString<N>;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_fmt(format_args!(
+                    "a string of length less than or equal to {}",
+                    N
+                ))
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                PicoString::try_from(v).map_err(|e| E::custom(e.to_string()))
+            }
+        }
+
+        deserializer.deserialize_str(StrVisitor::<N>)
     }
 }
 
