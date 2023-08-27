@@ -449,11 +449,35 @@ impl<const N: usize, const M: usize> PartialEq<PicoString<M>> for PicoString<N> 
     }
 }
 
+impl<const N: usize> PartialEq<&str> for PicoString<N> {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str().eq(*other)
+    }
+}
+
+impl<const N: usize> PartialEq<PicoString<N>> for &str {
+    fn eq(&self, other: &PicoString<N>) -> bool {
+        other.eq(self)
+    }
+}
+
 impl<const N: usize> Eq for PicoString<N> {}
 
 impl<const N: usize, const M: usize> PartialOrd<PicoString<M>> for PicoString<N> {
     fn partial_cmp(&self, other: &PicoString<M>) -> Option<std::cmp::Ordering> {
         Some(self.as_str().cmp(other.as_str()))
+    }
+}
+
+impl<const N: usize> PartialOrd<&str> for PicoString<N> {
+    fn partial_cmp(&self, other: &&str) -> Option<std::cmp::Ordering> {
+        Some(self.as_str().cmp(other))
+    }
+}
+
+impl<const N: usize> PartialOrd<PicoString<N>> for &str {
+    fn partial_cmp(&self, other: &PicoString<N>) -> Option<std::cmp::Ordering> {
+        other.partial_cmp(self)
     }
 }
 
@@ -666,9 +690,9 @@ mod tests {
 
     #[test]
     pub fn try_from() {
-        assert_eq!(&*PicoString::<0>::try_from("").unwrap(), "");
-        assert_eq!(&*PicoString::<1>::try_from("A").unwrap(), "A");
-        assert_eq!(&*PicoString::<2>::try_from("AB").unwrap(), "AB");
+        assert_eq!(PicoString::<0>::try_from("").unwrap(), "");
+        assert_eq!(PicoString::<1>::try_from("A").unwrap(), "A");
+        assert_eq!(PicoString::<2>::try_from("AB").unwrap(), "AB");
 
         assert!(PicoString::<0>::try_from("A").is_err());
         assert!(PicoString::<1>::try_from("AB").is_err());
