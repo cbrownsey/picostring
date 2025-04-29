@@ -8,7 +8,9 @@ Benchmarking is of course needed to determine if the overhead of calculating the
 
 # How
 
-UTF-8 is [~~an encoding sent from god himself~~](http://utf8everywhere.org/) a variable-length encoding, which rust has made great use of by ensuring that all strings are correct and valid utf-8. This means that no string in rust can contain any non-utf-8 characters or any invalid utf-8 bytes. This can be taken advantage of, as it is obvious that the last byte in an array cannot be valid utf-8 if it's also the start of a multi-byte character. Since there are 64 (0xC0..=0xFF), we can encode a full 64 values of length unambiguously (0-63 with leading bytes, 64th with any valid utf-8).
+UTF-8 is [~~an encoding sent from god himself~~](http://utf8everywhere.org/) a variable-length encoding, which rust has made great use of by ensuring that all strings are correct and valid UTF-8. This means that no string in rust can contain any non-UTF-8 characters or any invalid UTF-8 bytes.
+
+Given a fixed length array, the last byte will always be either a multibyte character start byte (of which there are 64), or the ending byte of a character. If it is an ending byte, then the string's length is the same as the array's length. If it isn't, we store the length of the string using one of the sixty-four start bytes.
 
 # Should you use this?
 
