@@ -2,9 +2,7 @@ A fixed capacity, stack allocated, const generic based string. Can't outgrow it'
 
 # Why
 
-Because I'm a cheap bastard who thinks it's important to penny-pinch bytes on his laptop with 8GB of RAM.
-
-More seriously, it's a proof of concept for space-optimized, stack allocated strings for domains where typical strings would only need some small number of bytes (e.g 4 or 8 to fit perfectly into a register), and adding another byte to store length increases the total size of the string by a non-significant percentage.
+This library is a proof of concept for space-optimized, stack allocated strings for domains where typical strings would only need some small number of bytes (e.g 4 or 8 to fit perfectly into a register), and adding another byte to store length increases the total size of the string by a not insignificant percentage.
 
 Benchmarking is of course needed to determine if the overhead of calculating the length is worth it, or if having some bytes dedicated to length ends up being faster regardless. Either way, my perfectionist tendencies are satiated and this project is good enough to be used as an internal dependancy for a project I'm working on.
 
